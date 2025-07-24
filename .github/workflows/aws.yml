@@ -1,0 +1,72 @@
+name: Deploy to EC2 via SSM
+
+on:
+  push:
+    branches:
+      - dev
+      - qa
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}  # Use branch name as environment (dev/qa)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Check Changed Files
+        uses: tj-actions/changed-files@v35
+        id: changed-files
+        with:
+          files: |
+            frontend/**
+            backend/**
+
+      - name: Deploy Frontend if Changed
+        if: steps.changed-files.outputs.any_changed == 'true' && contains(steps.changed-files.outputs.changed_files, 'frontend/')
+        run: |
+          INSTANCE_ID=${{ github.ref_name == 'dev' && secrets.EC2_INSTANCE_ID_DEV || secrets.EC2_INSTANCE_ID_QA }}
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters '{"commands":["bash ~/scripts/deploy-frontend.sh ${{ github.ref_name }}"]}' \
+            --comment "Deploying frontend to ${{ github.ref_name }}" \
+            --query "Command.CommandId" \
+            --output text)
+          echo "Frontend Command ID: $COMMAND_ID"
+          STATUS=$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details --query "CommandInvocations[].Status" --output text)
+          if [ "$STATUS" != "Success" ]; then
+            echo "Frontend deployment failed"
+            exit 1
+          fi
+          echo "Frontend deployment succeeded"
+
+      - name: Deploy Backend if Changed
+        if: steps.changed-files.outputs.any_changed == 'true' && contains(steps.changed-files.outputs.changed_files, 'backend/')
+        run: |
+          INSTANCE_ID=${{ github.ref_name == 'dev' && secrets.EC2_INSTANCE_ID_DEV || secrets.EC2_INSTANCE_ID_QA }}
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids $INSTANCE_ID \
+            --document-name "AWS-RunShellScript" \
+            --parameters '{"commands":["bash ~/scripts/deploy-backend.sh ${{ github.ref_name }}"]}' \
+            --comment "Deploying backend to ${{ github.ref_name }}" \
+            --query "Command.CommandId" \
+            --output text)
+          echo "Backend Command ID: $COMMAND_ID"
+          STATUS=$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details --query "CommandInvocations[].Status" --output text)
+          if [ "$STATUS" != "Success" ]; then
+            echo "Backend deployment failed"
+            exit 1
+          fi
+          echo "Backend deployment succeeded"
