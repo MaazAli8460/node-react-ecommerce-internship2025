@@ -7,7 +7,7 @@ import userRoute from './routes/userRoute';
 import productRoute from './routes/productRoute';
 import orderRoute from './routes/orderRoute';
 import uploadRoute from './routes/uploadRoute';
-
+MONGO_URI = "mongodb://ma1:ma1@localhost:27017/ecommerce";
 const mongodbUrl = config.MONGODB_URL;
 mongoose
   .connect(mongodbUrl, {
