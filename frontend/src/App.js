@@ -31,7 +31,7 @@ function App() {
         <header className="header">
           <div className="brand">
             <button onClick={openMenu}>&#9776;</button>
-            <Link to="/">amazona_Maaz_Ali</Link>
+            <Link to="/">amazona_With_SSM</Link>
           </div>
           <div className="header-links">
             <a href="cart.html">Cart</a>
