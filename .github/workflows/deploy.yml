@@ -13,7 +13,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}  # Use branch name as environment (dev/qa)
-
+    env:
+      INSTANCE_ID_DEV: ${{ secrets.EC2_INSTANCE_ID_DEV }}
+      INSTANCE_ID_QA: ${{ secrets.EC2_INSTANCE_ID_QA }}
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -32,11 +35,22 @@ jobs:
           files: |
             frontend/**
             backend/**
+      
+      - name: Set Instance ID
+        id: set-instance
+        run: |
+          BRANCH=$(echo "${{ github.ref }}" | awk -F'/' '{print $3}')
+          if [[ "$BRANCH" == "dev" ]]; then
+            echo "INSTANCE_ID=${{ secrets.EC2_INSTANCE_ID_DEV }}" >> $GITHUB_ENV
+          elif [[ "$BRANCH" == "qa" ]]; then
+            echo "INSTANCE_ID=${{ secrets.EC2_INSTANCE_ID_QA }}" >> $GITHUB_ENV
+          fi
 
+          
       - name: Deploy Frontend if Changed
+
         if: steps.changed-files.outputs.any_changed == 'true' && contains(steps.changed-files.outputs.changed_files, 'frontend/')
         run: |
-          INSTANCE_ID=${{ github.ref_name == 'dev' && secrets.EC2_INSTANCE_ID_DEV || secrets.EC2_INSTANCE_ID_QA }}
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
@@ -55,7 +69,6 @@ jobs:
       - name: Deploy Backend if Changed
         if: steps.changed-files.outputs.any_changed == 'true' && contains(steps.changed-files.outputs.changed_files, 'backend/')
         run: |
-          INSTANCE_ID=${{ github.ref_name == 'dev' && secrets.EC2_INSTANCE_ID_DEV || secrets.EC2_INSTANCE_ID_QA }}
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids $INSTANCE_ID \
             --document-name "AWS-RunShellScript" \
