@@ -47,25 +47,25 @@ jobs:
         run: |
           BRANCH=$(echo "${{ github.ref }}" | awk -F'/' '{print $3}')
           COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --parameters '{"commands":["bash /home/ssm-user/scripts/deploy-frontend.sh '$BRANCH'"]}' \
-            --comment "Deploying Frontend to $BRANCH" \
-            --query "Command.CommandId" \
-            --output text \
-            --region us-east-1)
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --parameters '{"commands":["export HOME=/home/ssm-user && sudo -u ssm-user bash /home/ssm-user/scripts/deploy-frontend.sh '$BRANCH'"]}' \
+          --comment "Deploying Frontend to $BRANCH" \
+          --query "Command.CommandId" \
+          --output text \
+          --region us-east-1)
           echo "Frontend Command ID: $COMMAND_ID"
           for i in {1..30}; do
             STATUS=$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details --query "CommandInvocations[].Status" --output text)
             if [ "$STATUS" == "Success" ] || [ "$STATUS" == "Failed" ] || [ "$STATUS" == "Cancelled" ]; then
               break
             fi
-            sleep 5
+          sleep 5
           done
           OUTPUT=$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details --query "CommandInvocations[].CommandPlugins[].Output" --output text)
           echo "SSM Command Output: $OUTPUT"
           if [ "$STATUS" != "Success" ]; then
-            echo "Frontend deployment failed with status: $STATUS"
+            echo "Frontend deployment failed with status:$STATUS"
             exit 1
           fi
           echo "Frontend deployment succeeded"
