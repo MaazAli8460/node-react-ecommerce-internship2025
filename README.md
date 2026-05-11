@@ -110,8 +110,11 @@ Deployed the application to cloud infrastructure and managed the runtime environ
 ### Technologies Used
 
 * AWS EC2
+* AWS Scheduler
+* AWS Lambda
 * Linux
 * SSH
+* SSM
 * Cloud Infrastructure
 
 ---
